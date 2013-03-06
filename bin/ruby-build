@@ -433,7 +433,71 @@ build_package_copy() {
 }
 
 before_install_package() {
-  local stub=1
+    (
+        cd source
+        patch -p1 <<-"END_PATCH"
+From a9936cf3621b2e34ea44abaabd9a4a3dbef37433 Mon Sep 17 00:00:00 2001
+From: Reza Jelveh
+Date: Thu, 15 Sep 2011 18:51:39 +0200
+Subject: [PATCH] archlinux patch
+
+---
+ distro/google-perftools-1.7/src/tcmalloc.cc |    9 ++++++++-
+ ext/dl/depend                               |    6 +++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/distro/google-perftools-1.7/src/tcmalloc.cc b/distro/google-perftools-1.7/src/tcmalloc.cc
+index 8d94d20..0769425 100644
+--- a/distro/google-perftools-1.7/src/tcmalloc.cc
++++ b/distro/google-perftools-1.7/src/tcmalloc.cc
+@@ -137,6 +137,13 @@
+ # define WIN32_DO_PATCHING 1
+ #endif
+ 
++// GLibc 2.14+ requires the hook functions be declared volatile, based on the value of the
++// define __MALLOC_HOOK_VOLATILE. For compatibility with older/non-GLibc implementations,
++// provide an empty definition.
++#if !defined(__MALLOC_HOOK_VOLATILE)
++#define __MALLOC_HOOK_VOLATILE
++#endif
++
+ using STL_NAMESPACE::max;
+ using STL_NAMESPACE::numeric_limits;
+ using STL_NAMESPACE::vector;
+@@ -1669,5 +1676,5 @@ static void *MemalignOverride(size_t align, size_t size, const void *caller)
+   MallocHook::InvokeNewHook(result, size);
+   return result;
+ }
+-void *(*__memalign_hook)(size_t, size_t, const void *) = MemalignOverride;
++void *(*__MALLOC_HOOK_VOLATILE __memalign_hook)(size_t, size_t, const void *) = MemalignOverride;
+ #endif  // #ifndef TCMALLOC_FOR_DEBUGALLOCATION
+diff --git a/ext/dl/depend b/ext/dl/depend
+index fba3df7..0830ffa 100644
+--- a/ext/dl/depend
++++ b/ext/dl/depend
+@@ -32,15 +32,15 @@ handle.o: dl.h
+ 
+ call.func: $(srcdir)/mkcall.rb ./dlconfig.rb
+   @echo "Generating call.func"
+-	@$(RUBY) $(srcdir)/mkcall.rb > $@
++	@$(RUBY) $(srcdir)/mkcall.rb | tee $@
+ 
+ callback.func: $(srcdir)/mkcallback.rb ./dlconfig.rb
+ 	@echo "Generating callback.func"
+-	@$(RUBY) $(srcdir)/mkcallback.rb > $@
++	@$(RUBY) $(srcdir)/mkcallback.rb | tee $@
+ 
+ cbtable.func: $(srcdir)/mkcbtable.rb ./dlconfig.rb
+ 	@echo "Generating cbtable.func"
+-	@$(RUBY) $(srcdir)/mkcbtable.rb > $@
++	@$(RUBY) $(srcdir)/mkcbtable.rb | tee $@
+ 
+ debug:
+ 	$(MAKE) CPPFLAGS="$(CPPFLAGS) -DDEBUG"
+-- 
+1.7.6.1
+END_PATCH
+    )
 }
 
 after_install_package() {
